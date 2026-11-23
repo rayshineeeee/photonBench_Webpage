@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotonBench — Milestone Slides</title>
+<style>
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; background: #e9e9ec; color: #1d1d1f; }
+  section { width: 1120px; height: 630px; box-sizing: border-box; margin: 28px auto; padding: 44px 56px; background: white; position: relative; overflow: hidden; }
+  h1 { font-size: 40px; margin: 0 0 6px; }
+  h2 { font-size: 32px; margin: 0 0 18px; }
+  p, li { font-size: 21px; line-height: 1.4; }
+  .sub { color: #555; font-size: 22px; margin: 0 0 22px; }
+  img { width: 100%; display: block; border-radius: 4px; }
+  .cap { font-size: 15px; color: #555; margin-top: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 20px; margin-bottom: 16px; }
+  th, td { border: 1px solid #ddd; padding: 7px 12px; text-align: left; }
+  th { background: #f5f5f7; } td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  p.why { font-size: 19px; margin: 18px 0 0; }
+  .flow { display: grid; grid-template-columns: 1fr 28px 1fr 28px 1fr 28px 1fr 28px 1fr; align-items: start; }
+  .step .num { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .step img, .step .prompt { width: 100%; aspect-ratio: 1; box-sizing: border-box; }
+  .step .prompt { background: #f5f5f7; border-radius: 4px; padding: 14px; font-size: 15px; line-height: 1.4; display: flex; align-items: center; }
+  .step p { font-size: 15px; line-height: 1.35; margin: 8px 0 0; }
+  .step .score { background: #f5f5f7; border-radius: 4px; padding: 12px 14px; font-size: 15px; line-height: 1.35; margin-bottom: 10px; }
+  .step .score strong { display: block; font-size: 17px; margin-bottom: 3px; }
+  .arrow { font-size: 24px; color: #888; text-align: center; padding-top: 100px; }
+  table.res { font-size: 17px; }
+  section li { font-size: 19px; margin-bottom: 6px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+  @page { size: 1120px 630px; margin: 0; }
+  @media print { body { background: white; } section { margin: 0; page-break-after: always; } }
+</style>
+</head>
+<body>
+
+<section>
+  <h1>PhotonBench</h1>
+  <p class="sub">Do generative image models obey the laws of light?<br>Om Gole, Naima Hammad, Peter Choi, Ray Sun</p>
+  <img src="milestone/insert_standins.jpg" alt="A scene, then the same scene with a sphere added with a correct shadow, a misplaced shadow and no shadow" style="width: 86%;">
+  <p class="cap">Our render, then three ways a model could answer "add a red sphere": correct shadow, shadow in the wrong direction, no shadow.</p>
+  <p>Image models make pictures that look real. We test whether the light in them is physically right.</p>
+  <p>We render scenes with our CS184 path tracer, ask a model to edit them, then rebuild the model's output in 3D and render it ourselves to see what the light should have done.</p>
+</section>
+
+<section>
+  <h2>How the benchmark works</h2>
+  <div class="flow">
+    <div class="step">
+      <div class="num">1 · Render</div>
+      <img src="milestone/pipeline_input.jpg" alt="A rendered scene">
+      <p>Our project 3 path tracer renders a scene. A pass we added also writes depth, normals, object ids and shadow masks.</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="num">2 · Prompt the model</div>
+      <div class="prompt">"Add a red sphere resting on the floor. Keep the camera, objects and lighting the same."</div>
+      <p>The image model gets our render and one specific instruction.</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="num">3 · Model output</div>
+      <img src="milestone/pipeline_output.jpg" alt="The scene with a sphere added and a misplaced shadow">
+      <p>The model may put the object anywhere and draw any shadow.</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="num">4 · Rebuild in 3D</div>
+      <img src="milestone/pipeline_rebuilt.jpg" alt="The output with the reconstructed sphere and the correct shadow outlined">
+      <p>We find the object, recover its 3D position, add it to our scene and render again.</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="num">5 · Score</div>
+      <div class="score"><strong>Geometry</strong>Did the model keep the scene we gave it, or change it?</div>
+      <div class="score"><strong>Lighting</strong>Does the shadow it drew match the one our render requires?</div>
+    </div>
+  </div>
+  <p class="why">We grade against what the model drew, not one fixed answer image, so a misread prompt is not mistaken for bad physics. Project 3 alone outputs only a picture; the added outputs are the answer key that steps 4 and 5 need.</p>
+</section>
+
+<section>
+  <h2>Our checker gives the right verdict. Models are next.</h2>
+  <div class="two">
+    <div>
+      <table class="res">
+        <tr><th>Stand-in image (20 scenes each)</th><th>Passed lighting</th><th>Shadow IoU</th></tr>
+        <tr><td>Correct shadow</td><td class="n">20 / 20</td><td class="n">0.99</td></tr>
+        <tr><td>Correct, blurred and shifted</td><td class="n">20 / 20</td><td class="n">0.95</td></tr>
+        <tr><td>Shadow in wrong direction</td><td class="n">0 / 20</td><td class="n">0.09</td></tr>
+        <tr><td>No shadow</td><td class="n">0 / 20</td><td class="n">0.00</td></tr>
+      </table>
+      <ul>
+        <li>We have not run image models yet, so we tested on images we built with known answers.</li>
+        <li>Ground truth matches the closed-form shadow of a sphere: 0 of 86,140 pixels differ.</li>
+        <li>Next: run editing models, finish the geometry score, then indirect light and mirrors.</li>
+      </ul>
+    </div>
+    <div>
+      <img src="milestone/insert_scoring.jpg" alt="Checker overlays for a correct, misplaced and missing shadow">
+      <p class="cap">White ring: the sphere we rebuilt. Green: the shadow it must cast. Red: shadow drawn in the wrong place. Blue: missing shadow.</p>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

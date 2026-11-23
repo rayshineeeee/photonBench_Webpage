@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotonBench — CS184 Final Project Milestone</title>
+<style>
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 24px; line-height: 1.5; color: #1d1d1f; }
+  h1 { font-size: 2.1em; margin-bottom: 0.1em; }
+  .subtitle { font-size: 1.15em; color: #555; margin-top: 0; }
+  h2 { border-bottom: 2px solid #e5e5e5; padding-bottom: 4px; margin-top: 1.6em; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.93em; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f7; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .team { background: #f5f5f7; padding: 12px 16px; border-radius: 8px; }
+  figure { margin: 14px 0; }
+  figure img { width: 100%; display: block; border-radius: 4px; }
+  figcaption { font-size: 0.88em; color: #555; margin-top: 6px; }
+  .todo { background: #fff4d6; padding: 0 4px; }
+  @media print { body { margin: 0; font-size: 11px; } h2 { page-break-after: avoid; } figure, table { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<h1>PhotonBench</h1>
+<p class="subtitle">Do Generative Image Models Obey the Laws of Light? Milestone report</p>
+
+<div class="team">
+  <strong>Team:</strong> Om Gole, Naima Hammad, Peter Choi, Ray Sun<br>
+  <strong>Links:</strong>
+  <a href="slides.html">Slides</a> ·
+  <a class="todo" href="VIDEO_URL">Video (link to add)</a> ·
+  <a href="index.html">Proposal</a> ·
+  <a href="https://github.com/om-gole/CS184-Final-Project">Code (private repo)</a>
+</div>
+
+<h2>What we have built</h2>
+<p>The benchmark runs end to end up to the point of calling an image model. We render a scene, give it to a model with one specific instruction, then <strong>rebuild the model's output in 3D and render it ourselves</strong> to see what the light should have done. Grading against what the model actually drew, instead of one fixed answer image, means a misread prompt is not mistaken for bad physics.</p>
+<ul>
+  <li><strong>Ground truth from our path tracer.</strong> We added a pass to our CS184 path tracer that, after each render, writes per-pixel depth, normals, object ids and, for every light, whether the point is lit, faces away, or is blocked and by which object. We also made point lights fall off with the inverse square of distance, which the homework starter did not do.</li>
+  <li><strong>Procedural scenes.</strong> A seeded generator places one to three coloured spheres and boxes on a floor under a point light and a dim fill light, and writes the scene file the path tracer loads.</li>
+  <li><strong>Two tasks.</strong> <em>Insert:</em> "add a red sphere on the floor", placed wherever the model likes. <em>Relight:</em> "move the light to the left", where a second render is the answer.</li>
+  <li><strong>Scoring by reconstruction.</strong> For insertion we find the new sphere in the output, recover its 3D position and radius from its silhouette (the camera and floor are known), add it to our scene and render again. That render gives the shadow the sphere must cast, which we compare with the shadow the model drew (IoU and direction). An output is first checked for being usable (a sphere was added and our reconstruction explains it), so "ignored the instruction" and "drew the wrong shadow" are reported separately.</li>
+</ul>
+
+<figure>
+  <img src="milestone/ground_truth.jpg" alt="A render of three objects next to its shadow mask, object ids, normals and depth">
+  <figcaption>One render and its ground truth: shadow mask (black = cast shadow, grey = facing away from the light), object ids, normals, depth.</figcaption>
+</figure>
+
+<h2>Preliminary results</h2>
+<p><strong>The ground truth is exact.</strong> For a sphere on a plane under a point light, the shadow has a closed form. We computed it independently in NumPy for four light positions and compared it with the renderer's mask at 1024×1024: 0 mismatched pixels out of 86,140 shadow pixels.</p>
+<p><strong>The insertion checker gives the right verdict.</strong> We have not run image models yet, so we built stand-in outputs with known answers for 20 scenes, using the renderer's object and occluder masks: a correct render, the same image with the sphere's shadow moved to where a different light would put it, and the same image with the shadow erased. We also scored the correct image after roughing it up the way a generative model would (blurred, shifted 6 px, dimmed 12%, heavy JPEG).</p>
+<table>
+  <tr><th>Stand-in image (20 each)</th><th>Passed lighting</th><th>Shadow IoU</th><th>Direction error</th></tr>
+  <tr><td>Correct shadow</td><td class="n">20 / 20</td><td class="n">0.99</td><td class="n">0.1°</td></tr>
+  <tr><td>Correct shadow, degraded</td><td class="n">20 / 20</td><td class="n">0.95</td><td class="n">0.7°</td></tr>
+  <tr><td>Shadow in the wrong direction</td><td class="n">0 / 20</td><td class="n">0.09</td><td class="n">115°</td></tr>
+  <tr><td>No shadow</td><td class="n">0 / 20</td><td class="n">0.00</td><td class="n">none found</td></tr>
+</table>
+<p>The verdict matched the label on all 120 images scored (the three kinds, clean and degraded). The recovered sphere centre was within 0.004 scene units of the true one on clean images and 0.06 on shifted ones, for spheres of radius 0.35 to 0.55. These stand-ins come from our own renderer, so they are an easier case than real model outputs.</p>
+
+<figure>
+  <img src="milestone/insert_scoring.jpg" alt="Checker overlays for a correct, misplaced and missing shadow">
+  <figcaption>Insertion checker on three stand-ins. White ring: the sphere we rebuilt. Green: the shadow it must cast. Red: shadow drawn in the wrong place. Blue: missing shadow.</figcaption>
+</figure>
+
+<p><strong>The relighting scorer separates right from wrong.</strong> Across 30 scenes (61 objects) we scored the correct render, a degraded copy of it, and the input returned unchanged.</p>
+<table>
+  <tr><th>Image scored</th><th>Shadow IoU</th><th>Direction error</th><th>Within 15°</th><th>PSNR</th></tr>
+  <tr><td>Correct render</td><td class="n">0.99</td><td class="n">0.2°</td><td class="n">100%</td><td class="n">exact</td></tr>
+  <tr><td>Correct render, degraded</td><td class="n">0.86</td><td class="n">3.7°</td><td class="n">100%</td><td class="n">19.7 dB</td></tr>
+  <tr><td>Input returned unchanged</td><td class="n">0.06</td><td class="n">117°</td><td class="n">2%</td><td class="n">14.9 dB</td></tr>
+</table>
+<p>PSNR puts the degraded but physically correct image only 4.8 dB above doing nothing, while the shadow metrics keep them far apart. That is the case for scoring shadows directly instead of pixels. Direction is scored for 56 of the 61 objects; for the other five the shadow is mostly hidden or merged with a neighbour's.</p>
+
+
+<h2>Progress against our plan</h2>
+<p>We are on schedule for the pipeline and behind on model evaluation. The proposal aimed to have one task scored on two models by now; the scenes, ground truth, tasks and scorers are done, but no model has been run.</p>
+<p>We changed how we score. Our TA pointed out that when a model adds an object, its 3D position is not determined by the 2D image, so there is no single correct answer image. We now constrain the edit (a sphere resting on a known floor, seen by a known camera, has only three unknowns) and reconstruct what the model drew before judging it. The geometry score is partial: it catches a missing or non-spherical object and measures change away from the edit, but does not yet check each original object. We have 20 insertion tasks and 30 relighting pairs (100 renders) against 100 scenes planned for week one.</p>
+
+<h2>Updated plan</h2>
+<table>
+  <tr><th>When</th><th>Work</th></tr>
+  <tr><td>Nov 23–26</td><td>Run insertion and relighting on at least two image-editing models. Finish the geometry score (did each original object stay put). Extend reconstruction to boxes and grow the dataset to about 200 tasks.</td></tr>
+  <tr><td>Nov 27–Dec 3</td><td>Add the two other light effects we want to measure. Indirect light: a white object beside a coloured wall, scored on the colour that should bleed onto it. Reflective materials: implement mirror reflection in the path tracer, then score whether a reflection appears in the right place. Run 4 or more models and hand-label about 150 outputs to check the automatic scores.</td></tr>
+  <tr><td>Dec 4–8</td><td>Leaderboard, failure gallery, final report and video, presentation.</td></tr>
+</table>
+
+</body>
+</html>
