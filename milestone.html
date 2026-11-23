@@ -81,12 +81,26 @@
 <p>We are on schedule for the pipeline and behind on model evaluation. The proposal aimed to have one task scored on two models by now; the scenes, ground truth, tasks and scorers are done, but no model has been run.</p>
 <p>We changed how we score. Our TA pointed out that when a model adds an object, its 3D position is not determined by the 2D image, so there is no single correct answer image. We now constrain the edit (a sphere resting on a known floor, seen by a known camera, has only three unknowns) and reconstruct what the model drew before judging it. Reconstruction handles spheres only so far, and both scores rely on our objects having distinct, saturated colours. We have 20 insertion tasks and 30 relighting pairs (140 renders) against 100 scenes planned for week one.</p>
 
+<h2>Extensions: what else we want to measure</h2>
+<p>Today the lighting score looks only at <em>where</em> a shadow is: its overlap with the correct shadow and its direction. A faint grey smudge in exactly the right place would pass. A shadow has more to it than position, and shadows are only one of the ways light shows up in an image. If we have time, we want to grade the properties below.</p>
+<p>The reconstruction step makes this possible. When we rebuild the model's scene and render it ourselves, we get a complete correct picture, not only a shadow mask, so any property of the light can be compared region by region. Two rules keep the comparison fair. First, we compare ratios within one image (shadow against the lit floor beside it), because models shift overall brightness and colour. Second, we only ask for what the input image gives evidence for: the model cannot know our light's exact strength, but it can see how dark and how soft the existing shadows are.</p>
+<table>
+  <tr><th>Property</th><th>Scene and edit</th><th>How we would score it</th><th>What it needs</th></tr>
+  <tr><td><strong>Shadow darkness</strong></td><td>Same insertion and relighting tasks</td><td>Brightness inside the new shadow divided by the lit floor next to it, compared with the same ratio for the shadows already in the scene and in our render</td><td>Scorer only</td></tr>
+  <tr><td><strong>Shadow fade</strong></td><td>Replace the point light with an area light, which gives soft edges</td><td>Width of the edge from dark to light, measured near the object and far from it. A real shadow is sharp where the object touches the floor and softer further out</td><td>Area lights in the scene generator; the renderer already supports them</td></tr>
+  <tr><td><strong>Shadow contact</strong></td><td>Same tasks</td><td>The shadow must meet the base of the object, with no gap of lit floor between them</td><td>Scorer only</td></tr>
+  <tr><td><strong>Shading on the object</strong></td><td>Same tasks</td><td>The bright side of the added object must face the light that its shadow implies. Our normals give the correct bright and dark sides</td><td>Scorer only</td></tr>
+  <tr><td><strong>Indirect light</strong></td><td>A white floor or white object beside a strongly coloured wall or box. Change the wall's colour, or add a coloured object next to a white surface</td><td>Render the scene twice, with direct light only and with all bounces; the difference is the bounced light at every pixel. On the white surface near the coloured one, check that a tint appears, has the right colour, and fades with distance</td><td>Scenes with walls, a direct-only render (the path tracer has this mode), a colour scorer</td></tr>
+  <tr><td><strong>Reflective objects</strong></td><td>A mirror wall behind the objects, or a mirror sphere. Add or move an object in front of it</td><td>A new renderer output records which object each mirror pixel shows. After rebuilding the scene, check that the reflection exists, is in the right place and is the right size</td><td>Mirror reflection in the path tracer (an empty stub in project 3), plus the new output</td></tr>
+</table>
+<p>We would report these as separate scores with a tolerance on each, not one number: "right place but too faint" and "wrong place" are different failures. Shadow darkness, contact and object shading come first because they need no renderer changes. Indirect light is next, since the path tracer already computes it. Mirrors need the most new graphics work. Bounced light is subtle, so those scenes will use saturated colours placed close to white surfaces to make a correct answer clearly different from a wrong one.</p>
+
 <h2>Updated plan</h2>
 <table>
   <tr><th>When</th><th>Work</th></tr>
   <tr><td>Nov 23–26</td><td>Run insertion and relighting on at least two image-editing models. Extend reconstruction to boxes and grow the dataset to about 200 tasks.</td></tr>
-  <tr><td>Nov 27–Dec 3</td><td>Add the two other light effects we want to measure. Indirect light: a white object beside a coloured wall, scored on the colour that should bleed onto it. Reflective materials: implement mirror reflection in the path tracer, then score whether a reflection appears in the right place. Run 4 or more models and hand-label about 150 outputs to check the automatic scores.</td></tr>
-  <tr><td>Dec 4–8</td><td>Leaderboard, failure gallery, final report and video, presentation.</td></tr>
+  <tr><td>Nov 27–Dec 3</td><td>Run 4 or more models and hand-label about 150 outputs to check the automatic scores. Start the extensions above in order: shadow darkness, contact and object shading, then indirect light, then mirror reflection.</td></tr>
+  <tr><td>Dec 4–8</td><td>Leaderboard, failure gallery, final report and video, presentation. Extensions that are not finished by Dec 3 are dropped.</td></tr>
 </table>
 
 </body>
