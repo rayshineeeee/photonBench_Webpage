@@ -27,6 +27,9 @@
   .arrow { font-size: 24px; color: #888; text-align: center; padding-top: 100px; }
   table.res { font-size: 17px; }
   section li { font-size: 19px; margin-bottom: 6px; }
+  h3 { font-size: 20px; margin: 22px 0 8px; }
+  ul.later { margin: 0; padding-left: 22px; }
+  ul.later li { font-size: 17px; line-height: 1.35; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
   @page { size: 1120px 630px; margin: 0; }
   @media print { body { background: white; } section { margin: 0; page-break-after: always; } }
@@ -90,15 +93,25 @@
         <tr><td>Shadow in wrong direction</td><td class="n">0 / 20</td><td class="n">0.09</td></tr>
         <tr><td>No shadow</td><td class="n">0 / 20</td><td class="n">0.00</td></tr>
       </table>
+      <table class="res">
+        <tr><th>Stand-in image</th><th>Passed geometry</th></tr>
+        <tr><td>Scene unchanged</td><td class="n">60 / 60</td></tr>
+        <tr><td>An object moved or removed</td><td class="n">0 / 40</td></tr>
+      </table>
       <ul>
-        <li>We have not run image models yet, so we tested on images we built with known answers.</li>
-        <li>Ground truth matches the closed-form shadow of a sphere: 0 of 86,140 pixels differ.</li>
-        <li>Next: run editing models, finish the geometry score, then indirect light and mirrors.</li>
+        <li>No image model has been run yet. These are images we built with known answers.</li>
+        <li>Next: run image-editing models through it.</li>
       </ul>
     </div>
     <div>
       <img src="milestone/insert_scoring.jpg" alt="Checker overlays for a correct, misplaced and missing shadow">
       <p class="cap">White ring: the sphere we rebuilt. Green: the shadow it must cast. Red: shadow drawn in the wrong place. Blue: missing shadow.</p>
+      <h3>If we have time: more than shadow position</h3>
+      <ul class="later">
+        <li><strong>Shadow darkness and fade.</strong> Is it as dark as the other shadows, sharp at the object and softer further out?</li>
+        <li><strong>Indirect light.</strong> Does colour from a coloured object bleed onto nearby white surfaces?</li>
+        <li><strong>Reflective objects.</strong> Does a mirror show the reflection in the right place?</li>
+      </ul>
     </div>
   </div>
 </section>

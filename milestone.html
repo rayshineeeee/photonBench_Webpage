@@ -60,6 +60,7 @@
   <tr><td>No shadow</td><td class="n">0 / 20</td><td class="n">0.00</td><td class="n">none found</td></tr>
 </table>
 <p>The verdict matched the label on all 120 images scored (the three kinds, clean and degraded). The recovered sphere centre was within 0.004 scene units of the true one on clean images and 0.06 on shifted ones, for spheres of radius 0.35 to 0.55. These stand-ins come from our own renderer, so they are an easier case than real model outputs.</p>
+<p><strong>The geometry score catches a changed scene.</strong> For each original object we compare where its colour sits in the output with where it sat in the input. We added two more stand-ins per scene in which the sphere and its shadow are correct but one original object has been moved or removed. All 40 were flagged, and all 60 images with the scene unchanged passed, both clean and degraded. The pass threshold was chosen after looking at these same images, so this is not yet an independent test.</p>
 
 <figure>
   <img src="milestone/insert_scoring.jpg" alt="Checker overlays for a correct, misplaced and missing shadow">
@@ -78,12 +79,12 @@
 
 <h2>Progress against our plan</h2>
 <p>We are on schedule for the pipeline and behind on model evaluation. The proposal aimed to have one task scored on two models by now; the scenes, ground truth, tasks and scorers are done, but no model has been run.</p>
-<p>We changed how we score. Our TA pointed out that when a model adds an object, its 3D position is not determined by the 2D image, so there is no single correct answer image. We now constrain the edit (a sphere resting on a known floor, seen by a known camera, has only three unknowns) and reconstruct what the model drew before judging it. The geometry score is partial: it catches a missing or non-spherical object and measures change away from the edit, but does not yet check each original object. We have 20 insertion tasks and 30 relighting pairs (100 renders) against 100 scenes planned for week one.</p>
+<p>We changed how we score. Our TA pointed out that when a model adds an object, its 3D position is not determined by the 2D image, so there is no single correct answer image. We now constrain the edit (a sphere resting on a known floor, seen by a known camera, has only three unknowns) and reconstruct what the model drew before judging it. Reconstruction handles spheres only so far, and both scores rely on our objects having distinct, saturated colours. We have 20 insertion tasks and 30 relighting pairs (140 renders) against 100 scenes planned for week one.</p>
 
 <h2>Updated plan</h2>
 <table>
   <tr><th>When</th><th>Work</th></tr>
-  <tr><td>Nov 23–26</td><td>Run insertion and relighting on at least two image-editing models. Finish the geometry score (did each original object stay put). Extend reconstruction to boxes and grow the dataset to about 200 tasks.</td></tr>
+  <tr><td>Nov 23–26</td><td>Run insertion and relighting on at least two image-editing models. Extend reconstruction to boxes and grow the dataset to about 200 tasks.</td></tr>
   <tr><td>Nov 27–Dec 3</td><td>Add the two other light effects we want to measure. Indirect light: a white object beside a coloured wall, scored on the colour that should bleed onto it. Reflective materials: implement mirror reflection in the path tracer, then score whether a reflection appears in the right place. Run 4 or more models and hand-label about 150 outputs to check the automatic scores.</td></tr>
   <tr><td>Dec 4–8</td><td>Leaderboard, failure gallery, final report and video, presentation.</td></tr>
 </table>
